@@ -4,11 +4,11 @@
     <!-- Navbar -->
     <v-toolbar dark color="primary">
       <v-toolbar-title class="headline">
-        <a @click="store.dispatch('asyncReload')" class="white--text font-weight-light">News</a>
+        <a @click="store.dispatch('reload')" class="white--text font-weight-light">News</a>
       </v-toolbar-title>
       <v-spacer></v-spacer>
       <v-btn icon>
-        <a @click="store.dispatch('asyncReload')" class="white--text font-weight-light">
+        <a @click="store.dispatch('reload')" class="white--text font-weight-light">
           <v-icon>refresh</v-icon>
         </a>
       </v-btn>
@@ -28,7 +28,7 @@
               <v-list>
                 <v-list-tile
                   v-for="(source, i) in sources" :key="i"
-                  @click="store.dispatch('asyncFilter', source.id)"
+                  @click="store.dispatch('filter', source.id)"
                 >
                   <v-list-tile-title>{{ source.name }}</v-list-tile-title>
                 </v-list-tile>
@@ -63,66 +63,47 @@ import Vuex from 'vuex';
 // Variables
 const API_KEY = '68152bd7d6764f1197d83cb4c5cef867';
 const API_BASE_URL = 'https://newsapi.org/v2';
-const headlines = [];
-const sources = [];
 
-// API call to https://newsapi.org
-const callAPI = (url) => {
-  fetch(url)
+// API calls to https://newsapi.org
+const fetchHeadlines = (url) => {
+  return fetch(url)
     .then(response => response.json())
-    .then((data) => {
-      data.articles.filter(e => e.urlToImage !== null && e.content !== null).forEach((article) => {
-        headlines.push(article);
-      });
-    });
+    .then(data => data.articles.filter(a => a.urlToImage && a.content));
 }
 
-// Get the latest headlines from different sources
-const fetchData = () => {
-  headlines.splice(0, headlines.length);
-  const url = `${API_BASE_URL}/top-headlines?country=us&apiKey=${API_KEY}`;
-  callAPI(url);
-}
-
-// Show the headlines from a particular source
-const filterData = (id) => {
-  headlines.splice(0, headlines.length);
-  const url = `${API_BASE_URL}/top-headlines?sources=${id}&apiKey=${API_KEY}`;
-  callAPI(url);
-}
-
-// Get the list of sources
-const getSources = () => {
-  const url = `${API_BASE_URL}/sources?apiKey=${API_KEY}`;
-  fetch(url)
+const fetchSources = (url) => {
+  return fetch(url)
     .then(response => response.json())
-    .then((data) => {
-      data.sources.forEach((source) => {
-        sources.push(source);
-      });
-    });
+    .then(data => data.sources);
 }
 
+// Store
 Vue.use(Vuex);
 const store = new Vuex.Store({
   state: {
-    headlines,
-    sources
+    headlines: [],
+    sources: []
   },
   mutations: {
-    filter (state, id) {
-      filterData(id)
+    setHeadlines (state, headlines) {
+      state.headlines = headlines;
     },
-    reloadPage () {
-      fetchData()
+    setSources (state, sources) {
+      state.sources = sources;
     }
   },
   actions: {
-    asyncFilter ({ commit }, id) {
-      commit('filter', id)
+    async filter ({ commit }, id) {
+      const url = `${API_BASE_URL}/top-headlines?sources=${id}&apiKey=${API_KEY}`;
+      store.commit('setHeadlines', await fetchHeadlines(url));
     },
-    asyncReload ({ commit }) {
-      commit('reloadPage')
+    async reload ({ commit }) {
+      const url = `${API_BASE_URL}/top-headlines?country=us&apiKey=${API_KEY}`;
+      store.commit('setHeadlines', await fetchHeadlines(url));
+    },
+    async getSources ({ commit }) {
+      const url = `${API_BASE_URL}/sources?apiKey=${API_KEY}`;
+      store.commit('setSources', await fetchSources(url));
     }
   },
 });
@@ -133,13 +114,13 @@ export default {
     Headlines
   },
   beforeMount () {
-    getSources()
-    fetchData()
+    this.store.dispatch('reload');
+    this.store.dispatch('getSources');
   },
   computed: {
-    headlines: () => { return store.state.headlines },
-    sources: () => { return store.state.sources },
-    store: () => { return store }
+    headlines: () => store.state.headlines,
+    sources: () => store.state.sources,
+    store: () => store
   }
 }
 </script>
