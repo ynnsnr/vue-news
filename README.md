@@ -15,6 +15,13 @@ yarn run serve
 yarn run build
 ```
 
+### Deploy
+```
+git status # clean?
+yarn run build
+yarn run deploy
+```
+
 ### Run your tests
 ```
 yarn run test
